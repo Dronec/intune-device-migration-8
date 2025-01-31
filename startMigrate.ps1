@@ -27,15 +27,14 @@ function Log {
 }
 
 # Graph authenticate function
-function msGraphAuthenticate()
-{
+function msGraphAuthenticate() {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$tenantName,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$clientId,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$clientSecret
     )
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -51,13 +50,12 @@ function msGraphAuthenticate()
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Authorization", $token)
     $headers.Add("Content-Type", "application/json")
-    $headers = @{'Authorization'="$($token)"}
+    $headers = @{'Authorization' = "$($token)" }
     return $headers
 }
 
 # Generate password function
-function generatePassword()
-{
+function generatePassword() {
     Param(
         [int]$length = 12
     )
@@ -80,13 +78,11 @@ log "Starting Intune Device Migration V8..."
 
 # Check if local path exists and create if it does not
 $localPath = "$($config.localPath)"
-if (-not (Test-Path $localPath)) 
-{
+if (-not (Test-Path $localPath)) {
     log "Creating local path $localPath"
     New-Item -Path $localPath -ItemType Directory
 }
-else
-{
+else {
     log "Local path $localPath already exists"
 }
 
@@ -105,22 +101,18 @@ Copy-Item -Path ".\*" -Destination $localPath -Recurse -Force
 
 # Authenticate to source tenant
 log "Checking configuration file for source tenant..."
-if([string]::IsNullOrEmpty($config.sourceTenant.tenantName))
-{
+if ([string]::IsNullOrEmpty($config.sourceTenant.tenantName)) {
     log "Source tenant not found in configuration file"
     exit
 }
-else
-{
+else {
     log "Source tenant found in configuration file"
-    try
-    {
+    try {
         log "Authenticating to source tenant..."
         $sourceHeaders = msGraphAuthenticate -tenantName $config.sourceTenant.tenantName -clientId $config.sourceTenant.clientId -clientSecret $config.sourceTenant.clientSecret
         log "Authenticated to source tenant"
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to authenticate to source tenant: $message"
         exit
@@ -129,22 +121,18 @@ else
 
 # Authenticate to destination tenant
 log "Checking configuration file for destination tenant..."
-if([string]::IsNullOrEmpty($config.targetTenant.tenantName))
-{
+if ([string]::IsNullOrEmpty($config.targetTenant.tenantName)) {
     log "Destination tenant not found in configuration file"
     $targetHeaders = $null
 }
-else
-{
+else {
     log "Destination tenant found in configuration file"
-    try
-    {
+    try {
         log "Authenticating to destination tenant..."
         $targetHeaders = msGraphAuthenticate -tenantName $config.targetTenant.tenantName -clientId $config.targetTenant.clientId -clientSecret $config.targetTenant.clientSecret
         log "Authenticated to destination tenant"
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to authenticate to destination tenant: $message"
         exit 1
@@ -157,20 +145,17 @@ $accountConnectionPath = "HKLM\SOFTWARE\Microsoft\PolicyManager\current\device\A
 $accountConnectionKey = "Registry::$accountConnectionPath"
 $accountConnectionName = "AllowMicrosoftAccountConnection"
 $accountConnectionValue = Get-ItemProperty -Path $accountConnectionKey -Name $accountConnectionName -ErrorAction SilentlyContinue
-if(!($accountConnectionValue))
-{
+if (!($accountConnectionValue)) {
     log "Microsoft account connection registry key not found; creating..."
     reg.exe add $accountConnectionPath /v $accountConnectionName /t REG_DWORD /d 1 /f | Out-Host
     log "Microsoft account connection registry key created"
 }
-elseif($accountConnectionValue -ne 1)
-{
+elseif ($accountConnectionValue -ne 1) {
     log "Microsoft account connection registry key found; updating..."
     reg.exe add $accountConnectionPath /v $accountConnectionName /t REG_DWORD /d 1 /f | Out-Host
     log "Microsoft account connection registry key updated"
 }
-else
-{
+else {
     log "Microsoft account connection registry key found"
 }
 
@@ -186,18 +171,16 @@ else
 [bool]$mdm = $false
 
 # Check if device is Intune managed
-$intuneCert = Get-ChildItem -Path $certPath | Where-Object {$_.Issuer -match $intuneIssuer}
+$intuneCert = Get-ChildItem -Path $certPath | Where-Object { $_.Issuer -match $intuneIssuer }
 log "Checking for Intune certificate..."
-if($intuneCert)
-{
+if ($intuneCert) {
     log "Intune certificate found"
     $mdm = $true
     $intuneId = (($intuneCert | Select-Object Subject).Subject).TrimStart("CN=")
     log "Intune ID: $intuneId"
     log "$hostname is Intune managed"
 }
-else
-{
+else {
     log "Device is not Intune managed"
     $intuneId = $null
     log "Intune ID: $intuneId"
@@ -205,15 +188,13 @@ else
 
 # Check if device is Autopilot registered
 log "Checking for Autopilot registration..."
-if($autopilotRegValue)
-{
+if ($autopilotRegValue) {
     log "Autopilot registration found"
     $mdm = $true
     $autopilotId = (Get-ItemProperty -Path "$($autopilotRegPath)\EstablishedCorrelations" -Name "ZtdRegistrationId").ZtdRegistrationId
     log "Autopilot ID: $autopilotId"
 }
-else
-{
+else {
     log "Autopilot registration not found"
     $autopilotId = $null
     log "Autopilot ID: $autopilotId"
@@ -221,43 +202,38 @@ else
 
 # Check if device is domain joined
 log "Checking for domain join..."
-if($domainJoined -eq "Yes")
-{
+if ($domainJoined -eq "Yes") {
     log "$hostname is domain joined"
     $localDomain = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "Domain").Domain
     log "Domain: $localDomain"
 }
-else
-{
+else {
     log "$hostname is not domain joined"
     $localDomain = $null
     log "Domain: $localDomain"
 }
 
 $pc = @{
-    hostname = $hostname
-    intuneId = $intuneId
-    azureAdId = $azureAdId
-    localDomain = $localDomain
-    autopilotId = $autopilotId
-    domainJoined = $domainJoined
+    hostname      = $hostname
+    intuneId      = $intuneId
+    azureAdId     = $azureAdId
+    localDomain   = $localDomain
+    autopilotId   = $autopilotId
+    domainJoined  = $domainJoined
     azureAdJoined = $azureAdJoined
-    mdm = $mdm
+    mdm           = $mdm
 }
 
 # Write PC object to registry
 log "Writing PC object to registry..."
-foreach($x in $pc.Keys)
-{
+foreach ($x in $pc.Keys) {
     $pcName = "OLD_$($x)"
     $pcValue = $($pc[$x])
     # Check if value is null or empty
-    if([string]::IsNullOrEmpty($pcValue))
-    {
+    if ([string]::IsNullOrEmpty($pcValue)) {
         log "$pcName is null or empty"
     }
-    else
-    {
+    else {
         log "$($pcName): $pcValue"
         reg.exe add $regPath /v $pcName /t REG_SZ /d $pcValue /f | Out-Null
         log "$pcName written to registry with value: $pcValue"
@@ -265,62 +241,59 @@ foreach($x in $pc.Keys)
 }
 
 # get current user info
-[string]$userName = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object UserName).UserName
-[string]$SID = (New-Object System.Security.Principal.NTAccount($userName)).Translate([System.Security.Principal.SecurityIdentifier]).Value
-[string]$profilePath = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($SID)" -Name "ProfileImagePath")
-[string]$SAMName = ($userName).Split("\")[1]
-    
+try {
+    [string]$userName = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object UserName).UserName
+    [string]$SID = (New-Object System.Security.Principal.NTAccount($userName)).Translate([System.Security.Principal.SecurityIdentifier]).Value
+    [string]$profilePath = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($SID)" -Name "ProfileImagePath")
+    [string]$SAMName = ($userName).Split("\")[1]
+}
+catch {
+    log "Username and domain not found.  Exiting script."
+    exit 1  
+}   
 # If PC is NOT domain joined, get UPN from cache
 log "Attempting to get current user's UPN..."
 # If PC is Azure AD joined, get user ID from Graph
-if($azureAdJoined -eq "YES")
-{
+if ($azureAdJoined -eq "YES") {
     $upn = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\IdentityStore\Cache\$($SID)\IdentityCache\$($SID)" -Name "UserName")
     log "System is Entra ID Joined - detected IdentityCache UPN value: $upn. Querying graph..."
     $entraUserId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/users/$($upn)" -Headers $sourceHeaders).id
-    if($entraUserId)
-    {
+    if ($entraUserId) {
         log "Successfully obtained Entra User ID: $entraUserId."
         log "Entra ID: $entraUserId"
     }
-    else
-    {
+    else {
         log "Could not obtain Entra User ID from UPN value: $upn."
         $entraUserId = $null
         log "Entra ID: $entraUserId"
     }
 }
-else
-{
+else {
     log "System is not Entra joined - setting UPN and Entra User ID values to Null."
     $upn = $null
     $entraUserId = $null
 }
 
 $currentUser = @{
-    userName = $userName
-    upn = $upn
+    userName    = $userName
+    upn         = $upn
     entraUserId = $entraUserId
     profilePath = $profilePath
-    SAMName = $SAMName
-    SID = $SID
+    SAMName     = $SAMName
+    SID         = $SID
 }
 # Write user object to registry
-foreach($x in $currentUser.Keys)
-{
+foreach ($x in $currentUser.Keys) {
     $currentUserName = "OLD_$($x)"
     $currentUserValue = $($currentUser[$x])
     # Check if value is null or empty
-    if(![string]::IsNullOrEmpty($currentUserValue))
-    {
+    if (![string]::IsNullOrEmpty($currentUserValue)) {
         log "Writing $($currentUserName) with value $($currentUserValue)..."
-        try
-        {
+        try {
             reg.exe add $regPath /v $currentUserName /t REG_SZ /d $currentUserValue /f | Out-Null
             log "Successfully wrote $($currentUserName) with value $($currentUserValue)."
         }
-        catch
-        {
+        catch {
             $message = $_.Exception.Message
             log "Failed to write $($currentUserName) with value $($currentUserValue).  Error: $($message)."
         }
@@ -330,29 +303,24 @@ foreach($x in $currentUser.Keys)
 
 # USER SIGN IN TO VERIFY CREDENTIALS AND GET TARGET TENANT SID
 $installedNuget = Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue
-if(-not($installedNuget))
-{
+if (-not($installedNuget)) {
     log "NuGet package provider not installed.  Installing..."
     Install-PackageProvider -Name NuGet -Force
     log "NuGet package provider installed successfully."
 }
-else
-{
+else {
     log "NuGet package provider already installed."
 }
 # Check for Az.Accounts module
-$modules = ("Az.Accounts","RunAsUser")
-foreach($module in $modules)
-{
+$modules = ("Az.Accounts", "RunAsUser")
+foreach ($module in $modules) {
     $installedModule = Get-InstalledModule -Name $module -ErrorAction SilentlyContinue
-    if(-not($installedModule))
-    {
+    if (-not($installedModule)) {
         log "$module module not installed.  Installing..."
         Install-Module -Name $module -Force
         log "$module module installed successfully."
     }
-    else
-    {
+    else {
         log "$module module already installed."
     }
 }
@@ -366,7 +334,7 @@ $scriptBlock = {
     $theToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com/"
 
     #Get Token form OAuth
-    $token = -join("Bearer ", $theToken.Token)
+    $token = -join ("Bearer ", $theToken.Token)
 
     #Reinstantiate headers
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -376,10 +344,10 @@ $scriptBlock = {
     $newUserObject = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/me" -Headers $headers -Method "GET"
 
     $newUser = @{
-        upn = $newUserObject.userPrincipalName
+        upn         = $newUserObject.userPrincipalName
         entraUserId = $newUserObject.id
-        SAMName = $newUserObject.userPrincipalName.Split("@")[0]
-        SID = $newUserObject.securityIdentifier
+        SAMName     = $newUserObject.userPrincipalName.Split("@")[0]
+        SID         = $newUserObject.securityIdentifier
     } | ConvertTo-JSON
 
     $newUser | Out-File "C:\Users\Public\Documents\newUserInfo.json"
@@ -389,45 +357,37 @@ $timeout = 300
 $checkInterval = 5
 $elapsedTime = 0
 Invoke-AsCurrentUser -ScriptBlock $scriptBlock -UseWindowsPowerShell
-while($elapsedTime -lt $timeout)
-{
-    if(Test-Path $newUserPath)
-    {
+while ($elapsedTime -lt $timeout) {
+    if (Test-Path $newUserPath) {
         log "New user found.  Continuing with script..."
         $elapsedTime = $timeout
         break
     }
-    else
-    {
+    else {
         log "New user info not present.  Waiting for user to sign in..."
         Start-Sleep -Seconds $checkInterval
         $elapsedTime += $checkInterval
     }
 }
-if(Test-Path $newUserPath)
-{
+if (Test-Path $newUserPath) {
     $newUserInfo = Get-Content -Path "C:\Users\Public\Documents\newUserInfo.json" | ConvertFrom-JSON
 
     $newUser = @{
         entraUserID = $newUserInfo.entraUserId
-        SID = $newUserInfo.SID
-        SAMName = $newUserInfo.SAMName
-        UPN = $newUserInfo.upn
+        SID         = $newUserInfo.SID
+        SAMName     = $newUserInfo.SAMName
+        UPN         = $newUserInfo.upn
     }
-    foreach($x in $newUser.Keys)
-    {
+    foreach ($x in $newUser.Keys) {
         $newUserName = "NEW_$($x)"
         $newUserValue = $($newUser[$x])
-        if(![string]::IsNullOrEmpty($newUserValue))
-        {
+        if (![string]::IsNullOrEmpty($newUserValue)) {
             log "Writing $($newUserName) with value $($newUserValue)..."
-            try
-            {
+            try {
                 reg.exe add "HKLM\SOFTWARE\IntuneMigration" /v $newUserName /t REG_SZ /d $newUserValue /f | Out-Null
                 log "Successfully wrote $($newUserName) with value $($newUserValue)."
             }
-            catch
-            {
+            catch {
                 $message = $_.Exception.Message
                 log "Failed to write $($newUserName) with value $($newUserValue).  Error: $($message)."
             }
@@ -436,46 +396,38 @@ if(Test-Path $newUserPath)
     Write-Host "User found. Continuing with script..."
     Remove-Item -Path $newUserPath -Force -Recurse
 }
-else
-{
+else {
     log "User not found.  Exiting script."
-    [System.Windows.Forms.MessageBox]::Show("Please enter the VM name and select the Windows 11 version", "Hyper Hyper-V", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
     exit 1
 }
 
 
 # remove MDM certificate
-if($intuneCert)
-{
+if ($intuneCert) {
     log "Removing MDM certificate..."
     $intuneCert | Remove-Item
     log "MDM certificate removed"
 }
-else
-{
+else {
     log "MDM certificate not found"
 }
 
 # remove mdm enrollment
 # Remove MDM enrollment
-if($pc.mdm -eq $true)
-{
+if ($pc.mdm -eq $true) {
     log "Removing MDM enrollment..."
     $enrollmentPath = "HKLM:\SOFTWARE\Microsoft\Enrollments\"
     $enrollments = Get-ChildItem -Path $enrollmentPath
-    foreach($enrollment in $enrollments)
-    {
+    foreach ($enrollment in $enrollments) {
         $object = Get-ItemProperty Registry::$enrollment
         $enrollPath = $enrollmentPath + $object.PSChildName
         $key = Get-ItemProperty -Path $enrollPath -Name "DiscoveryServiceFullURL"
-        if($key)
-        {
+        if ($key) {
             log "Removing MDM enrollment $($enrollPath)..."
             Remove-Item -Path $enrollPath -Recurse
             log "MDM enrollment removed successfully."
         }
-        else
-        {
+        else {
             log "MDM enrollment not present."
         }
     }
@@ -489,74 +441,59 @@ if($pc.mdm -eq $true)
         "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Logger\$($enrollID)",
         "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Sessions\$($enrollID)"
     )
-    foreach($path in $additionalPaths)
-    {
-        if(Test-Path $path)
-        {
+    foreach ($path in $additionalPaths) {
+        if (Test-Path $path) {
             log "Removing $($path)..."
             Remove-Item -Path $path -Recurse
             log "$($path) removed successfully."
         }
-        else
-        {
+        else {
             log "$($path) not present."
         }
     }
 }
-else
-{
+else {
     log "MDM enrollment not present."
 }
 
 
 # Set migration tasks
-$tasks = @("reboot","postMigrate")
-foreach($task in $tasks)
-{
+$tasks = @("reboot", "postMigrate")
+foreach ($task in $tasks) {
     $taskPath = "$($localPath)\$($task).xml"
-    if([string]::IsNullOrEmpty($taskPath))
-    {
+    if ([string]::IsNullOrEmpty($taskPath)) {
         log "$($task) task not found."
     }
-    else
-    {
+    else {
         log "Setting $($task) task..."
-        try
-        {
+        try {
             schtasks.exe /create /xml $taskPath /tn $task /f | Out-Host
             log "$($task) task set successfully."
         }
-        catch
-        {
+        catch {
             $message = $_.Exception.Message
             log "Failed to set $($task) task. Error: $message"
             log "Exiting script."
-            [System.Windows.Forms.MessageBox]::Show("Failed to set $($task) task. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             exit 1
         }
     }
 }
 
 # Leave Azure AD / Entra Join
-if($pc.azureAdJoined -eq "YES")
-{
+if ($pc.azureAdJoined -eq "YES") {
     log "PC is Azure AD Joined.  Leaving Azure AD..."
-    try
-    {
+    try {
         Start-Process -FilePath "C:\Windows\System32\dsregcmd.exe" -ArgumentList "/leave"
         log "PC left Azure AD successfully."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to leave Azure AD. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to leave Azure AD. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         Exit 1
     }
 }
-else
-{
+else {
     log "PC is not Azure AD Joined."
 }
 
@@ -568,163 +505,136 @@ $adminGroupName = $adminGroup.Name
 New-LocalUser -Name $migrateAdmin -Password $adminPW -PasswordNeverExpires
 Add-LocalGroupMember -Group $adminGroupName -Member $migrateAdmin
 
-if($pc.domainJoined -eq "YES")
-{
+if ($pc.domainJoined -eq "YES") {
     [string]$hostname = $pc.hostname,
     [string]$localDomain = $pc.localDomain
 
     # Check for line of sight to domain controller
     $pingCount = 4
-    $pingResult = Test-Connection -TargetName $localDomain -Count $pingCount
-    if($pingResult.StatusCode -eq 0)
-    {
+    $pingResult = Test-Connection $localDomain -Count $pingCount
+    if ($pingResult.StatusCode -eq 0) {
         log "$($hostname) has line of sight to domain controller.  Attempting to break..."
-        $adapter = Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Select-Object -ExpandProperty InterfaceAlias
-        Set-DnsClientServerAddress -InterfaceAlias $adapter -ServerAddresses ("8.8.8.8","8.8.4.4")
+        $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty InterfaceAlias
+        Set-DnsClientServerAddress -InterfaceAlias $adapter -ServerAddresses ("8.8.8.8", "8.8.4.4")
         log "Successfully broke line of sight to domain controller."
     }
-    else
-    {
+    else {
         log "$($hostname) has no line of sight to domain controller."
     }
     log "Checking $migrateAdmin status..."
     [bool]$acctStatus = (Get-LocalUser -Name $migrateAdmin).Enabled
-    if($acctStatus -eq $false)
-    {
+    if ($acctStatus -eq $false) {
         log "$migrateAdmin is disabled; setting password and enabling..."
         Get-LocalUser -Name $migrateAdmin | Enable-LocalUser
         log "Successfully enabled $migrateAdmin."
     }
-    else
-    {
+    else {
         log "$migrateAdmin is already enabled."
     }
-    try
-    {
+    try {
         $instance = Get-CimInstance -ClassName 'Win32_ComputerSystem'
         $invCimParams = @{
             MethodName = 'UnjoinDomainOrWorkGroup'
-            Arguments = @{ FUnjoinOptions=0;Username="$hostname\$migrateAdmin";Password="$adminPW" }
+            Arguments  = @{ FUnjoinOptions = 0; Username = "$hostname\$migrateAdmin"; Password = "$adminPW" }
         }
         $instance | Invoke-CimMethod @invCimParams
         log "Successfully unjoined $hostname from domain."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to unjoin $hostname from domain. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to unjoin $hostname from domain. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         Exit 1
     }
 }
-else
-{
+else {
     log "PC is not domain joined."
 }
 
 # FUNCTION: removeSCCM
 # DESCRIPTION: Removes the SCCM client from the device.
-function removeSCCM()
-{
+function removeSCCM() {
     [CmdletBinding()]
     Param(
         [string]$CCMpath = "C:\Windows\ccmsetup\ccmsetup.exe",
-        [array]$services = @("CcmExec","smstsmgr","CmRcService","ccmsetup"),
+        [array]$services = @("CcmExec", "smstsmgr", "CmRcService", "ccmsetup"),
         [string]$CCMProcess = "ccmsetup",
         [string]$servicesRegPath = "HKLM:\SYSTEM\CurrentControlSet\Services\",
         [string]$ccmRegPath = "HKLM:\SOFTWARE\Microsoft\CCM",
-        [array]$sccmKeys = @("CCM","SMS","CCMSetup"),
+        [array]$sccmKeys = @("CCM", "SMS", "CCMSetup"),
         [string]$CSPPath = "HKLM:\SOFTWARE\Microsoft\DeviceManageabilityCSP",
-        [array]$sccmFolders = @("C:\Windows\ccm","C:\Windows\ccmsetup","C:\Windows\ccmcache","C:\Windows\ccmcache2","C:\Windows\SMSCFG.ini",
-        "C:\Windows\SMS*.mif"),
-        [array]$sccmNamespaces = @("ccm","sms")
+        [array]$sccmFolders = @("C:\Windows\ccm", "C:\Windows\ccmsetup", "C:\Windows\ccmcache", "C:\Windows\ccmcache2", "C:\Windows\SMSCFG.ini",
+            "C:\Windows\SMS*.mif"),
+        [array]$sccmNamespaces = @("ccm", "sms")
     )
     
     # Remove SCCM client
     log "Removing SCCM client..."
-    if(Test-Path $CCMpath)
-    {
+    if (Test-Path $CCMpath) {
         log "Uninstalling SCCM client..."
         Start-Process -FilePath $CCMpath -ArgumentList "/uninstall" -Wait
-        if($CCMProcess)
-        {
+        if ($CCMProcess) {
             log "SCCM client still running; killing..."
             Stop-Process -Name $CCMProcess -Force -ErrorAction SilentlyContinue
             log "Killed SCCM client."
         }
-        else
-        {
+        else {
             log "SCCM client uninstalled successfully."
         }
         # Stop SCCM services
-        foreach($service in $services)
-        {
+        foreach ($service in $services) {
             $serviceStatus = Get-Service -Name $service -ErrorAction SilentlyContinue
-            if($serviceStatus)
-            {
+            if ($serviceStatus) {
                 log "Stopping $service..."
                 Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
                 log "Stopped $service."
             }
-            else
-            {
+            else {
                 log "$service not found."
             }
         }
         # Remove WMI Namespaces
-        foreach($namespace in $sccmNamespaces)
-        {
+        foreach ($namespace in $sccmNamespaces) {
             Get-WmiObject -Query "SELECT * FROM __Namespace WHERE Name = '$namespace'" -Namespace "root" | Remove-WmiObject
         }
         # Remove SCCM registry keys
-        foreach($service in $services)
-        {
+        foreach ($service in $services) {
             $serviceKey = $servicesRegPath + $service
-            if(Test-Path $serviceKey)
-            {
+            if (Test-Path $serviceKey) {
                 log "Removing $serviceKey registry key..."
                 Remove-Item -Path $serviceKey -Recurse -Force -ErrorAction SilentlyContinue
                 log "Removed $serviceKey registry key."
             }
-            else
-            {
+            else {
                 log "$serviceKey registry key not found."
             }
         }
-        foreach($key in $sccmKeys)
-        {
+        foreach ($key in $sccmKeys) {
             $keyPath = $ccmRegPath + "\" + $key
-            if(Test-Path $keyPath)
-            {
+            if (Test-Path $keyPath) {
                 log "Removing $keyPath registry key..."
                 Remove-Item -Path $keyPath -Recurse -Force -ErrorAction SilentlyContinue
                 log "Removed $keyPath registry key."
             }
-            else
-            {
+            else {
                 log "$keyPath registry key not found."
             }
         }
         # Remove CSP
         Remove-Item -Path $CSPPath -Recurse -Force -ErrorAction SilentlyContinue
         # Remove SCCM folders
-        foreach($folder in $sccmFolders)
-        {
-            if(Test-Path $folder)
-            {
+        foreach ($folder in $sccmFolders) {
+            if (Test-Path $folder) {
                 log "Removing $folder..."
                 Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue
                 log "Removed $folder."
             }
-            else
-            {
+            else {
                 log "$folder not found."
             }
         }
     }
-    else
-    {
+    else {
         log "SCCM client not found."
     }
 }
@@ -732,93 +642,75 @@ function removeSCCM()
 
 # Remove SCCM client if required
 log "Checking for SCCM client..."
-if($config.SCCM -eq $true)
-{
+if ($config.SCCM -eq $true) {
     log "SCCM enabled.  Removing SCCM client..."
-    try
-    {
+    try {
         removeSCCM
         log "SCCM client removed successfully."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to remove SCCM client. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to remove SCCM client. Error :$message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
         Return
     }
 }
-else
-{
+else {
     log "SCCM not enabled."
 }
 
 # Delete source tenant objects
 log "Deleting source tenant objects..."
 # intune delete
-if($pc.intuneId)
-{
+if ($pc.intuneId) {
     log "Deleting Intune object..."
-    try
-    {
+    try {
         Invoke-RestMethod -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($pc.intuneId)" -Headers $sourceHeaders
         log "Intune object deleted successfully."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to delete Intune object. Error: $message"
     }
 }
-else
-{
+else {
     log "Intune object not found."
 }
 
 # autopilot delete
-if($pc.autopilotId)
-{
+if ($pc.autopilotId) {
     log "Deleting Autopilot object..."
-    try
-    {
+    try {
         Invoke-RestMethod -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities/$($pc.autopilotId)" -Headers $sourceHeaders
         log "Autopilot object deleted successfully."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to delete Autopilot object. Error: $message"
     }
 }
-else
-{
+else {
     log "Autopilot object not found."
 }
 
 # Install provisioning package
 $ppkg = (Get-ChildItem -Path $config.localPath -Filter "*.ppkg" -Recurse).FullName
-if($ppkg)
-{
+if ($ppkg) {
     log "Provisioning package found. Installing..."
-    try
-    {
+    try {
         Install-ProvisioningPackage -PackagePath $ppkg -QuietInstall -Force
         log "Provisioning package installed."
     }
-    catch
-    {
+    catch {
         $message = $_.Exception.Message
         log "Failed to install provisioning package. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to install provisioning package. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         Exit 1
     }
 }
-else
-{
+else {
     log "Provisioning package not found."
-    [System.Windows.Forms.MessageBox]::Show("Provisioning package not found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    Exit 1
 }
 
 # Set auto logon
@@ -841,12 +733,10 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 log "DisplayLastUser disabled."
 
 # Set lock screen caption
-if($targetHeaders)
-{
+if ($targetHeaders) {
     $tenant = $config.targetTenant.tenantName
 }
-else
-{
+else {
     $tenant = $config.sourceTenant.tenantName
 }
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "legalnoticecaption" /t REG_SZ /d "Device Migration in Progress..." /f | Out-Host 
@@ -855,13 +745,11 @@ log "Lock screen caption set successfully."
 
 # Disable user ESP
 $SkipOOBE = get-childitem -path HKLM:\software\microsoft\enrollments\ -Recurse | Where-Object { $_.Property -match 'SkipUserStatusPage' }
-if ($SkipOOBE) 
-{
+if ($SkipOOBE) {
     $Converted = Convert-Path $SkipOOBE.PSPath
     New-ItemProperty -Path Registry::$Converted -Name SkipUserStatusPage  -Value 4294967295 -PropertyType DWORD -Force | Out-Null
 }
-else 
-{
+else {
     log "SkipUserStatusPage not found."
 }
 
