@@ -506,9 +506,7 @@ New-LocalUser -Name $migrateAdmin -Password $adminPW -PasswordNeverExpires
 Add-LocalGroupMember -Group $adminGroupName -Member $migrateAdmin
 
 if ($pc.domainJoined -eq "YES") {
-    [string]$hostname = $pc.hostname,
-    [string]$localDomain = $pc.localDomain
-
+    log "Hostname: $($hostname) Localdomain: $($localDomain)"
     # Check for line of sight to domain controller
     $pingCount = 4
     $pingResult = Test-Connection $localDomain -Count $pingCount
@@ -757,6 +755,6 @@ Add-Computer -WorkGroupName "WORKGROUP"
 log "Changing workgroup to WORKGROUP"
 
 # Stop transcript and restart
-log "$($pc.hostname) will reboot in 30 seconds..."
+log "$($hostname) will reboot in 30 seconds..."
 Stop-Transcript
 shutdown -r -t 30
